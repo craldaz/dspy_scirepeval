@@ -11,9 +11,10 @@
 # Arguments
 #  - file_location # the folder where the PDF files are stored
 #  - loglevel # log level (default: INFO)
+#  - citation_matrix # citation matrix pickle file, if None then will create random
 
 
-# TODO the citation matrix is only two papers right now,
+# TODO the citation matrix will be random if there is no citation matrix file
 # need to be updated to the real citation matrix
 
 import hashlib
@@ -54,9 +55,9 @@ def ingestDocumentNeo4j(doc, doc_location, driver):
         "MATCH (c:Chunk {key: $doc_url_hash_val+'|'+$block_idx_val+'|'+$sentences_hash_val}) MATCH (s:Section {key:$doc_url_hash_val+'|'+$parent_block_idx_val+'|'+$parent_hash_val}) MERGE (s)<-[:HAS_PARENT]-(c);"
     ]
 
-    logger.debug(f'Ingesting Document: {doc_location}')
-    logger.debug(f'doc.sections: {len(doc.sections())}')
-    logger.debug(f'doc.chunks: {len(doc.chunks())}')
+    logger.info(f'Ingesting Document: {doc_location}')
+    logger.info(f'doc.sections: {len(doc.sections())}')
+    logger.info(f'doc.chunks: {len(doc.chunks())}')
 
 
     with driver.session() as session:
@@ -67,9 +68,9 @@ def ingestDocumentNeo4j(doc, doc_location, driver):
 
         # Process Sections
         countSection = 0
-        logger.debug(f'Processing Document: {doc_location}')
+        logger.info(f'Processing Document: {doc_location}')
         for sec in doc.sections():
-            logger.debug(f'Processing Section: {sec.title}')
+            logger.info(f'Processing Section: {sec.title}')
             sec_title_val = sec.title
             sec_title_hash_val = hashlib.md5(sec_title_val.encode("utf-8")).hexdigest()
             sec_tag_val = sec.tag  # Assuming 'tag' differentiates sections, like 'introduction', 'methodology', etc.
@@ -135,9 +136,9 @@ def ingestDocumentNeo4j(doc, doc_location, driver):
                                 doc_url_hash_val=doc_url_hash_val)
                     countChunk += 1
 
-    logger.debug(f'\'{doc_location}\' Done! Summary: ')
-    logger.debug(f'#Sections: {countSection}')
-    logger.debug(f'#Chunks: {countChunk}')
+    logger.info(f'\'{doc_location}\' Done! Summary: ')
+    logger.info(f'#Sections: {countSection}')
+    logger.info(f'#Chunks: {countChunk}')
 
 
     return doc_url_hash_val
@@ -206,14 +207,14 @@ if __name__ == '__main__':
     # get all documents under the folder
     pdf_files = list(args.file_location.glob('*.pdf'))
 
-    logger.debug(f'#PDF files found: {len(pdf_files)}!')
+    logger.info(f'#PDF files found: {len(pdf_files)}!')
     assert len(pdf_files) > 0, 'No PDF files found!'
     pdf_reader = LayoutPDFReader(llmsherpa_api_url)
 
     # parse documents and create graph
     startTime = datetime.now()
     driver = GraphDatabase.driver(NEO4J_URL, auth=(NEO4J_USER, NEO4J_PASSWORD), database=NEO4J_DATABASE)
-    logger.debug(f'Connecting to Neo4j at {NEO4J_URL}...')
+    logger.info(f'Connecting to Neo4j at {NEO4J_URL}...')
 
     doc_url_hash_values = []
     for pdf_file in pdf_files:
@@ -235,7 +236,7 @@ if __name__ == '__main__':
         citation_matrix = [[random.randint(0, 1) for _ in range(len(pdf_files))] for _ in range(len(pdf_files))]
     else:
         citation_matrix = pickle.load(args.citation_matrix)
-    logger.debug(f'Creating document links...')
+    logger.info(f'Creating document links...')
     create_document_links(driver, citation_matrix, doc_url_hash_values)
     driver.close()
 
