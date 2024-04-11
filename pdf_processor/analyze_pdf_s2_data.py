@@ -37,6 +37,9 @@ for _, row in query_candidate_data.iterrows():
     if os.path.isfile(query_file) and os.path.isfile(candidate_file):
         # If both files exist, append the row to valid_rows
         valid_rows = valid_rows._append(row)
+        
+# See what papers in retrieved papers are in link-recorder-final-1 candidate rows
+
 
 # Reset the index of valid_rows
 valid_rows.reset_index(drop=True, inplace=True)
@@ -46,6 +49,29 @@ print(f'Number of query candidate pairs with valid files: {len(valid_rows)}')
 # unique query papers
 unique_query_papers = valid_rows['query'].unique()
 print(f'Number of unique query papers: {len(unique_query_papers)}')
+
+# This is the number of query papers in valid_rows that appears more than once 
+
+query_paper_counts = valid_rows['query'].value_counts()
+print(query_paper_counts)
+print(f'Number of query papers with exactly one candidate paper: {query_paper_counts[query_paper_counts == 1].count()}')
+print(f'Number of query papers with more than one candidate papers: {query_paper_counts[query_paper_counts > 1].count()}')
+
+# for each query paper with more than one candidate papers what is the sum of their boolean values
+for query_paper in query_paper_counts[query_paper_counts > 1].index:
+    print(f'{query_paper=}, {valid_rows[valid_rows["query"] == query_paper]["bool"].sum()/len(valid_rows[valid_rows["query"] == query_paper]):.2%} ({valid_rows[valid_rows["query"] == query_paper]["bool"].sum()}) of {len(valid_rows[valid_rows["query"] == query_paper])} candidates are positive')
+# print(f'the sum of boolean values for each query_papers_with_multiple_candidates: {valid_rows[valid_rows["query"].isin(query_paper_counts[query_paper_counts > 1].index)]["bool"].sum()}')
+
+# for each unique valid query paper, which one has no positive candidate papers
+num_no_positive_candidate_papers = 0
+for query_paper in unique_query_papers:
+    sum_bool = valid_rows[valid_rows["query"] == query_paper]["bool"].sum()
+    if sum_bool == 0:
+        print(f'{query_paper=} has no positive candidate papers')
+        num_no_positive_candidate_papers += 1
+print(f'Number of query papers with no positive candidate papers: {num_no_positive_candidate_papers}')
+        # print(f'{query_paper=}, {sum_bool=}, {len(valid_rows[valid_rows["query"] == query_paper])}')
+
 valid_rows.to_csv('darwin/valid_query_candidate_pairs.csv', index=False)
 
 classification_labels=[(0, 'Agricultural and Food sciences'), (1, 'Art'), (2, 'Biology'), (3, 'Business'), (4, 'Chemistry'), (5, 'Computer science'), (6, 'Economics'), (7, 'Education'), (8, 'Engineering'), (9, 'Environmental science'), (11, 'Geology'), (12, 'History'), (13, 'Law'), (14, 'Linguistics'), (15, 'Materials science'), (16, 'Mathematics'), (17, 'Medicine'), (18, 'Philosophy'), (19, 'Physics'), (20, 'Political science'), (21, 'Psychology'), (22, 'Sociology')]
@@ -116,18 +142,19 @@ print(f'\tmin: {matrix_df[matrix_df.sum(axis=1) > 0].sum(axis=1).min()}')
 print(f'\tmax: {matrix_df[matrix_df.sum(axis=1) > 0].sum(axis=1).max()}')
 
 
-found_classification_candidate = [] 
+found_classification_candidate = []
 print('Processing candidate papers and their retrieved papers classification')
 for candidate_paper in candidate_paper_ids:
     classification = [meta['labels'] for meta in classification_meta if meta['corpus_id'] == candidate_paper]
     if len(classification) != 0:
-        print(f'{candidate_paper=}, {classification=}')
-        found_classification_candidate.append(('unknown', classification[0]))
+        # print(f'{candidate_paper=}, {classification=}')
+        # found_classification_candidate.append(('unknown', classification[0]))
 
         retrieved_paper_for_candidate = matrix_df.loc[candidate_paper][matrix_df.loc[candidate_paper] == 1].index.tolist()
-        print(f'{retrieved_paper_for_candidate=}')
+        # print(f'{retrieved_paper_for_candidate=}')
         for retrieved_paper in retrieved_paper_for_candidate:
-            classification = [meta['labels'] for meta in classification_meta if meta['corpus_id'] == retrieved_paper]
-            if len(classification) != 0:
-                print(f'{retrieved_paper=}, {classification=}')
-                found_classification_candidate.append(('unknown', classification[0]))
+            classification_retrieved = [meta['labels'] for meta in classification_meta if meta['corpus_id'] == retrieved_paper]
+            if len(classification_retrieved) != 0:
+                print(f'{candidate_paper=}, {classification=}, {retrieved_paper=}, {classification_retrieved=}')
+                found_classification_candidate.append((candidate_paper, classification))
+print(f' found {len(found_classification_candidate)} classification for candidate papers and their retrieved papers')
